@@ -1,0 +1,7 @@
+matplotlib
+numpy
+pyparsing
+python-dateutil
+six
+torch
+torchvision
