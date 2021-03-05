@@ -5,8 +5,8 @@ import torch
 import torch.nn as nn
 from module import Module
 import torch.nn.functional as F
-from pydensecrf import densecrf as dcrf
-from pydensecrf.utils import unary_from_softmax, create_pairwise_bilateral
+# from pydensecrf import densecrf as dcrf
+from pydensecrf_my.utils import unary_from_softmax, create_pairwise_bilateral, densecrf as dcrf
 
 
 class EncoderDecoder(nn.Module):
@@ -88,26 +88,23 @@ kernel3d.requires_grad = False
 
 
 def crf(softmax_outputs, inputs):
-    c, h, w = inputs.shape[1], softmax_outputs.shape[2], softmax_outputs.shape[3]
-
-    result = torch.zeros(inputs.shape)
+    result = torch.zeros(softmax_outputs.shape)
     idx = 0
     for input in inputs:
         # unary
-        u = unary_from_softmax(softmax_outputs[idx].detach().numpy())
-        u = np.ascontiguousarray(u)
+        u = unary_from_softmax(softmax_outputs[idx].detach().numpy()).reshape(softmax_outputs.shape[1], -1)
 
         # pairwise
         p = create_pairwise_bilateral(sdims=(25, 25), schan=(0.05, 0.05), img=input.detach().numpy(), chdim=0)
 
-        crf = dcrf.DenseCRF2D(w, h, c)
+        crf = dcrf.DenseCRF2D(inputs.shape[3], inputs.shape[2], softmax_outputs.shape[1])
         # unary potential
         crf.setUnaryEnergy(u)
         # + pairwise potential
         crf.addPairwiseEnergy(p, compat=100)
         Q = crf.inference(10)
         print(Q)
-        result[idx] = torch.tensor(np.array(Q).reshape((c, h, w)))
+        result[idx] = torch.tensor(np.array(Q).reshape((-1, inputs.shape[2], inputs.shape[3])))
         idx += 1
 
     return result
@@ -219,7 +216,6 @@ class WNet(nn.Module):
         x = self.U_enc.forward(image)
         output_enc = self.soft_max.forward(x)
         crf(output_enc, image)
-        quit()
         # output_enc, output_dec = self.forward(image)
         ncutloss = NCutLoss2D(output_enc, image)
         ncutloss.backward()

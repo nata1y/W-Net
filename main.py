@@ -10,7 +10,6 @@ from torchvision import datasets, transforms
 from pathlib import Path
 import matplotlib.pyplot as plt
 import PIL
-import numpy as np
 
 img_path = Path('./BSR/BSDS500/data/images/')
 
@@ -38,7 +37,7 @@ if __name__ == '__main__':
     wnet = WNet(3, 64)
     wnet.to(device)
     print(wnet)
-    wnet.load_state_dict(torch.load("model_2_only_reconstruct.pth", map_location=torch.device('cpu')))
+    # wnet.load_state_dict(torch.load("model_2_only_reconstruct.pth", map_location=torch.device('cpu')))
     max_epoch = 5
     #optimizer = optim.SGD(wnet.parameters(), lr=0.01, momentum=0.9)
     optimizer = optim.Adam(wnet.parameters())
