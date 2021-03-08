@@ -5,8 +5,8 @@ import torch
 import torch.nn as nn
 from module import Module
 import torch.nn.functional as F
-# from pydensecrf import densecrf as dcrf
-from pydensecrf_my.utils import unary_from_softmax, create_pairwise_bilateral, densecrf as dcrf
+from pydensecrf import densecrf as dcrf
+from pydensecrf.utils import unary_from_softmax, create_pairwise_bilateral
 
 
 class EncoderDecoder(nn.Module):
@@ -80,9 +80,9 @@ def createKernel(sigma, r):
     return kernel / torch.sum(kernel)
 
 
-kernel1d = createKernel(4, 5)
+kernel1d = createKernel(4, 5).cuda()
 kernel3d = torch.cat([kernel1d, kernel1d, kernel1d], 1)
-kernel3d = torch.cat([kernel3d, kernel3d, kernel3d], 0)
+kernel3d = torch.cat([kernel3d, kernel3d, kernel3d], 0).cuda()
 # kernel3d = torch.cat([kernel1d, kernel1d, kernel1d], 0)
 kernel3d.requires_grad = False
 
@@ -92,10 +92,10 @@ def crf(softmax_outputs, inputs):
     idx = 0
     for input in inputs:
         # unary
-        u = unary_from_softmax(softmax_outputs[idx].detach().numpy()).reshape(softmax_outputs.shape[1], -1)
+        u = unary_from_softmax(softmax_outputs[idx].cpu().detach().numpy()).reshape(softmax_outputs.shape[1], -1)
 
         # pairwise
-        p = create_pairwise_bilateral(sdims=(25, 25), schan=(0.05, 0.05), img=input.detach().numpy(), chdim=0)
+        p = create_pairwise_bilateral(sdims=(25, 25), schan=(0.05, 0.05), img=input.cpu().detach().numpy(), chdim=0)
 
         crf = dcrf.DenseCRF2D(inputs.shape[3], inputs.shape[2], softmax_outputs.shape[1])
         # unary potential
@@ -206,7 +206,7 @@ class WNet(nn.Module):
         # output_dec = self.sigmoid.forward(output_dec)
         return output_dec
 
-    def train(self, image, optimizer, optimizer2):
+    def train(self, image, optimizer, optimizer2, doCRF):
         # output_enc = self.soft_max(self.U_enc.forward(image))
         # n_cut_loss = gradient_regularization(output_enc)*0.5
         # n_cut_loss.backward()
@@ -215,12 +215,13 @@ class WNet(nn.Module):
         # print(image)
         x = self.U_enc.forward(image)
         output_enc = self.soft_max.forward(x)
-        crf(output_enc, image)
         # output_enc, output_dec = self.forward(image)
         ncutloss = NCutLoss2D(output_enc, image)
         ncutloss.backward()
         optimizer2.step()
         optimizer2.zero_grad()
+        if doCRF:
+            output_enc = crf(output_enc, image)
         output_dec = self.forward(image)
         # print(image)
         # print(NCutLoss2D(output_enc, image).item())

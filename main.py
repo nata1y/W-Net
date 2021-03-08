@@ -9,6 +9,7 @@ import os
 from torchvision import datasets, transforms
 from pathlib import Path
 import matplotlib.pyplot as plt
+import sys
 import PIL
 
 img_path = Path('./BSR/BSDS500/data/images/')
@@ -21,7 +22,6 @@ def categorical_image(tensor):
 
 
 if __name__ == '__main__':
-
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
         
@@ -46,7 +46,7 @@ if __name__ == '__main__':
     for epoch in range(max_epoch):
         for batch_idx, (image, labels) in enumerate(dataloader):
             image = image.to(device)
-            out1, out2, loss = wnet.train(image, optimizer, optimizer2)
+            out1, out2, loss = wnet.train(image, optimizer, optimizer2, batch_idx % 100 == 99)
             print(f"Image: {batch_idx}, Loss: {loss * image.nelement()}")
             #quit()
             if (batch_idx % 100 == 99):
