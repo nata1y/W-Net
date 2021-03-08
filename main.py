@@ -15,10 +15,17 @@ import PIL
 img_path = Path('./BSR/BSDS500/data/images/')
 
 
-def categorical_image(tensor):
-    print(tensor.shape)
+def categorical_image(tensor, image):
+    newImage = np.zeros_like(image.numpy()).squeeze()
+    newImage = np.moveaxis(newImage, 0, -1)
     categories = torch.argmax(torch.squeeze(tensor), 0).numpy()
-    return categories
+    for x in range(np.max(categories) + 1):
+        matches = categories == x
+        if matches.any():
+            image_colors = np.stack((image[0, 0][matches],image[0, 1][matches],image[0, 2][matches]))
+            color = np.mean(image_colors, axis=1)
+            newImage[matches] = color
+    return newImage
 
 
 if __name__ == '__main__':
@@ -34,7 +41,7 @@ if __name__ == '__main__':
     dataset = datasets.ImageFolder(img_path, transform=transform)
 
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=True)
-    wnet = WNet(3, 64)
+    wnet = WNet(3, 20)
     wnet.to(device)
     print(wnet)
     # wnet.load_state_dict(torch.load("model_2_only_reconstruct.pth", map_location=torch.device('cpu')))
@@ -46,13 +53,13 @@ if __name__ == '__main__':
     for epoch in range(max_epoch):
         for batch_idx, (image, labels) in enumerate(dataloader):
             image = image.to(device)
-            out1, out2, loss = wnet.train(image, optimizer, optimizer2, batch_idx % 100 == 99)
+            out1, out2, loss = wnet.train(image, optimizer, optimizer2, batch_idx % 500 == 0)
             print(f"Image: {batch_idx}, Loss: {loss * image.nelement()}")
             #quit()
-            if (batch_idx % 100 == 99):
+            if (batch_idx % 500 == 0):
                 f, axarr = plt.subplots(1, 3)
                 axarr[0].imshow(transforms.ToPILImage()(torch.squeeze(image.cpu())))
-                axarr[1].imshow(categorical_image(out1.cpu()))
+                axarr[1].imshow(categorical_image(out1.cpu(), image.cpu()))
                 axarr[2].imshow(transforms.ToPILImage()(torch.squeeze(out2.cpu())))
                 plt.show()
-        torch.save(wnet.state_dict(), f"model_{epoch}_finetuning.pth")
+        torch.save(wnet.state_dict(), f"model_{epoch}_k=20.pth")
