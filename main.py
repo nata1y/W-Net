@@ -15,7 +15,7 @@ import PIL
 img_path = Path('./BSR/BSDS500/data/images/')
 
 
-def categorical_image(tensor, image):
+def categorical_image(tensor, image, red_lines):
     newImage = np.zeros_like(image.numpy()).squeeze()
     newImage = np.moveaxis(newImage, 0, -1)
     categories = torch.argmax(torch.squeeze(tensor), 0).numpy()
@@ -25,6 +25,11 @@ def categorical_image(tensor, image):
             image_colors = np.stack((image[0, 0][matches],image[0, 1][matches],image[0, 2][matches]))
             color = np.mean(image_colors, axis=1)
             newImage[matches] = color
+    if red_lines:
+        img_sobel = np.roll(categories,1, axis=0)!=categories
+        newImage[img_sobel] = [1, 0, 0]
+        img_sobel = np.roll(categories,1, axis=1)!=categories
+        newImage[img_sobel] = [1, 0, 0]
     return newImage
 
 
@@ -59,7 +64,7 @@ if __name__ == '__main__':
             if (batch_idx % 500 == 0):
                 f, axarr = plt.subplots(1, 3)
                 axarr[0].imshow(transforms.ToPILImage()(torch.squeeze(image.cpu())))
-                axarr[1].imshow(categorical_image(out1.cpu(), image.cpu()))
+                axarr[1].imshow(categorical_image(out1.cpu(), image.cpu(), True))
                 axarr[2].imshow(transforms.ToPILImage()(torch.squeeze(out2.cpu())))
                 plt.show()
         torch.save(wnet.state_dict(), f"model_{epoch}_k=20.pth")
