@@ -58,13 +58,14 @@ if __name__ == '__main__':
     for epoch in range(max_epoch):
         for batch_idx, (image, labels) in enumerate(dataloader):
             image = image.to(device)
-            out1, out2, loss = wnet.train(image, optimizer, optimizer2, batch_idx % 500 == 0)
+            out1, outcrf, out2, loss = wnet.train(image, optimizer, optimizer2, batch_idx % 500 == 0)
             print(f"Image: {batch_idx}, Loss: {loss * image.nelement()}")
             #quit()
             if (batch_idx % 500 == 0):
-                f, axarr = plt.subplots(1, 3)
+                f, axarr = plt.subplots(1, 4)
                 axarr[0].imshow(transforms.ToPILImage()(torch.squeeze(image.cpu())))
                 axarr[1].imshow(categorical_image(out1.cpu(), image.cpu(), True))
-                axarr[2].imshow(transforms.ToPILImage()(torch.squeeze(out2.cpu())))
+                axarr[2].imshow(categorical_image(outcrf.cpu(), image.cpu(), True))
+                axarr[3].imshow(transforms.ToPILImage()(torch.squeeze(out2.cpu())))
                 plt.show()
         torch.save(wnet.state_dict(), f"model_{epoch}_k=20.pth")

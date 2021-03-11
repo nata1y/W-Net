@@ -109,6 +109,35 @@ def crf(softmax_outputs, inputs):
 
     return result
 
+def NCutLoss2D_Good(labels, inputs, num_features=224, sigma_x=4, sigma_i=10, r=5):
+    r"""Computes the continuous N-Cut loss, given a set of class probabilities (labels) and raw images (inputs).
+    Small modifications have been made here for efficiency -- specifically, we compute the pixel-wise weights
+    relative to the class-wide average, rather than for every individual pixel.
+    :param labels: Predicted class probabilities
+    :param inputs: Raw images
+    :return: Continuous N-Cut loss
+    """
+    num_classes = labels.shape[1]
+    #kernel = gaussian_kernel(radius=self.radius, sigma=self.sigma_1, device=labels.device.type)
+    loss = 0
+
+    for k in range(num_classes):
+        # Compute the average pixel value for this class, and the difference from each pixel
+        class_probs = labels[:, k].unsqueeze(1)
+        class_mean = torch.mean(inputs * class_probs, dim=(2, 3), keepdim=True) / \
+            torch.add(torch.mean(class_probs, dim=(2, 3), keepdim=True), 1e-5)
+        diff = (inputs - class_mean).pow(2).sum(dim=1).unsqueeze(1)
+
+        # Weight the loss by the difference from the class average.
+        weights = torch.exp(diff.pow(2).mul(-1 / sigma_i ** 2))
+
+        # Compute N-cut loss, using the computed weights matrix, and a Gaussian spatial filter
+        numerator = torch.sum(class_probs * F.conv2d(class_probs * weights, kernel1d, padding=r))
+        denominator = torch.sum(class_probs * F.conv2d(weights, kernel1d, padding=r))
+        loss += nn.L1Loss()(numerator / torch.add(denominator, 1e-6), torch.zeros_like(numerator))
+
+    return num_classes - loss
+
 
 def NCutLoss2D(labels, inputs, num_features=224, sigma_x=4, sigma_i=10, r=5):
     num_classes = labels.shape[1]
