@@ -80,9 +80,9 @@ def createKernel(sigma, r):
     return kernel / torch.sum(kernel)
 
 
-kernel1d = createKernel(4, 5).cuda()
+kernel1d = createKernel(4, 5)
 kernel3d = torch.cat([kernel1d, kernel1d, kernel1d], 1)
-kernel3d = torch.cat([kernel3d, kernel3d, kernel3d], 0).cuda()
+kernel3d = torch.cat([kernel3d, kernel3d, kernel3d], 0)
 # kernel3d = torch.cat([kernel1d, kernel1d, kernel1d], 0)
 kernel3d.requires_grad = False
 
@@ -168,56 +168,37 @@ def NCutLoss2D(labels, inputs, num_features=224, sigma_x=4, sigma_i=10, r=5):
 
     for k in range(num_classes):
         class_probs = labels[:, k]
-        '''
-        diff_pixel_values = torch.zeros(1, 1, 224 * 224, 224 * 224)
 
-        for i in range(1):
-            channel = torch.cat(224 * 224 * [inputs[0, i].flatten()])
-            print(channel.shape)
-            diff_pixel_values[0, i] = torch.nn.functional.pairwise_distance(channel, channel)
+        # diff_pixel_values = torch.nn.functional.pairwise_distance(class_probs.reshape(class_probs.shape[1],
+        #                                                                     class_probs.shape[2], 1),
+        #                                                 class_probs.reshape(class_probs.shape[1],
+        #                                                                     class_probs.shape[2], 1))
+        diff_pixel_values = torch.cdist(class_probs.reshape(class_probs.shape[1],
+                                                                            class_probs.shape[2], 1),
+                                                        class_probs.reshape(class_probs.shape[1],
+                                                                            class_probs.shape[2], 1))
 
-        print(diff_pixel_values)
-        print(diff_pixel_values.shape)
+        weights2 = torch.exp(diff_pixel_values.pow(2).mul(-1 / sigma_i ** 2))
+        result = torch.zeros(class_probs.shape)
+        result2 = torch.zeros(class_probs.shape)
+        print(result.shape)
+        for i in range(112):
+            for j in range(112):
+                result[0, i, j] = class_probs[0, i, j] * weights2[i, i, j]
+                result2[0, i, j] = weights2[i, i, j]
+        print(result.shape)
+        print(class_probs.shape)
 
-        weights = torch.exp(diff_pixel_values.pow(2).mul(-1 / sigma_i ** 2))
-        kernel = torch.zeros(1, 1, 2 * r + 1, 2 * r + 1)
-        for i in range(2 * r + 1):
-            for j in range(2 * r + 1):
-                kernel[0, 0, i, j] = math.exp(-1 * ((r - i) ** 2 + (r - j) ** 2) / (sigma_x ** 2))
-                if np.sqrt((r - i) ** 2 + (r - j) ** 2) < r:
-                    kernel[0, 0, i, j] = 0
-
-        kernel2 = torch.cat([kernel, kernel, kernel], 1)
-        kernel2 = torch.cat([kernel2, kernel2, kernel2], 0)
-        print(kernel2.shape)
-        '''
-        # newblocks = blocks
-        # print(newblocks)
-
-        # weights = torch.nn.functional.conv2d(inputs, weight=kernel3d, padding=r)
-        # weights.requires_grad = False
-
-        # Calculate the actual weight matrix by calculating the pixel distances
-        # weights2 = torch.exp(torch.norm(inputs - weights, p=2, dim=1).pow(2).mul(-1 / (sigma_i ** 2))).unsqueeze(1)
-        # weights2.requires_grad = False
-
-        # class_probs = labels[:, k].unsqueeze(1)
-        # class_mean = torch.mean(inputs * class_probs, dim=(2, 3), keepdim=True) / \
-        #    torch.add(torch.mean(class_probs, dim=(2, 3), keepdim=True), 1e-5)
-        # diff = (inputs - class_mean).pow(2).sum(dim=1).unsqueeze(1)
-
-        # Weight the loss by the difference from the class average.
-        # weights = torch.exp(diff.pow(2).mul(-1 / sigma_i ** 2))
-
+        result = result.unsqueeze(0)
+        result2 = result2.unsqueeze(0)
+        print(torch.nn.functional.conv2d(result, weight=kernel1d, padding=r).shape)
         # Compute N-cut loss, using the computed weights matrix, and a Gaussian spatial filter
-        numerator = torch.sum(class_probs * torch.nn.functional.conv2d(
-            class_probs * weights2, weight=kernel1d, padding=r))
+        numerator = torch.sum(class_probs * torch.nn.functional.conv2d(result, weight=kernel1d, padding=r))
         # print("NUMERATOR ->", numerator)
-        denominator = torch.sum(class_probs * torch.nn.functional.conv2d(
-            weights2, weight=kernel1d, padding=r))
+        denominator = torch.sum(class_probs * torch.nn.functional.conv2d(result2, weight=kernel1d, padding=r))
         # print("DENOMINATOR ->", denominator)
         loss += nn.L1Loss()(numerator / torch.add(denominator, 1e-6), torch.zeros_like(numerator))
-        # print("LOSS ->", loss)
+        print("LOSS ->", loss)
 
     print("LOSS:", num_classes - loss)
     return num_classes - loss

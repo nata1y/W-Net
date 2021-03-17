@@ -38,7 +38,7 @@ if __name__ == '__main__':
     print(f"Using device: {device}")
         
     transform = transforms.Compose([transforms.Resize(255),
-                                    transforms.CenterCrop(224),
+                                    transforms.CenterCrop(112),
                                     transforms.ToTensor()])
 
     print(img_path)
