@@ -109,6 +109,15 @@ def crf(softmax_outputs, inputs):
 
     return result
 
+
+def globalPb():
+    pass
+
+
+def contour2ucm():
+    pass
+
+
 def NCutLoss2D_Good(labels, inputs, num_features=224, sigma_x=4, sigma_i=10, r=5):
     r"""Computes the continuous N-Cut loss, given a set of class probabilities (labels) and raw images (inputs).
     Small modifications have been made here for efficiency -- specifically, we compute the pixel-wise weights
