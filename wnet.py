@@ -258,8 +258,9 @@ class WNet(nn.Module):
         ncutloss.backward()
         optimizer2.step()
         optimizer2.zero_grad()
+        output_crf = None
         if doCRF:
-            output_enc = crf(output_enc, image)
+            output_crf = crf(output_enc, image)
         output_dec = self.forward(image)
         # print(image)
         # print(NCutLoss2D(output_enc, image).item())
@@ -280,4 +281,4 @@ class WNet(nn.Module):
         loss.backward()
         optimizer.step()
         optimizer.zero_grad()
-        return output_enc, output_dec, loss
+        return output_enc, output_crf, output_dec, loss
