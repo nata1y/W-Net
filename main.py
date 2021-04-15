@@ -29,6 +29,8 @@ def categorical_image(tensor, image, red_lines):
     return newImage
 
 
+# Use this for training
+# NOTE! this code is for running on cpu, need some modifications for gpu mode
 if __name__ == '__main__':
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
